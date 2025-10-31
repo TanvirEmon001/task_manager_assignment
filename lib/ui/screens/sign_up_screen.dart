@@ -1,3 +1,5 @@
+import 'package:provider/provider.dart';
+import 'package:task_manager_assignment/data/provider/sign_up_provider.dart';
 import 'package:task_manager_assignment/utils/core_paths.dart';
 
 class SignUpScreen extends StatefulWidget {
@@ -16,8 +18,8 @@ class _SignUpScreenState extends State<SignUpScreen> {
   final TextEditingController _mobileTEController = TextEditingController();
   final TextEditingController _passwordTEController = TextEditingController();
   final GlobalKey<FormState> _formKey = GlobalKey<FormState>();
+  final SignUpProvider _signUpProvider = SignUpProvider();
 
-  bool _signUpInProgress = false;
 
   @override
   Widget build(BuildContext context) {
@@ -100,13 +102,17 @@ class _SignUpScreenState extends State<SignUpScreen> {
                     },
                   ),
                   const SizedBox(height: 16),
-                  Visibility(
-                    visible: _signUpInProgress == false,
-                    replacement: CenteredProgressIndicator(),
-                    child: FilledButton(
-                      onPressed: _onTapSubmitButton,
-                      child: Icon(Icons.arrow_circle_right_outlined),
-                    ),
+                  Consumer<SignUpProvider>(
+                    builder: (context,signUpProvider,_){
+                      return Visibility(
+                        visible: signUpProvider.signUpInProgress == false,
+                        replacement: CenteredProgressIndicator(),
+                        child: FilledButton(
+                          onPressed: _onTapSubmitButton,
+                          child: Icon(Icons.arrow_circle_right_outlined),
+                        ),
+                      );
+                    },
                   ),
                   const SizedBox(height: 36),
                   Center(
@@ -148,28 +154,22 @@ class _SignUpScreenState extends State<SignUpScreen> {
   }
 
   Future<void> _signUp() async {
-    _signUpInProgress = true;
-    setState(() {});
-    Map<String, dynamic> requestBody = {
-      "email": _emailTEController.text.trim(),
-      "firstName": _firstNameTEController.text.trim(),
-      "lastName": _lastNameTEController.text.trim(),
-      "mobile": _mobileTEController.text.trim(),
-      "password": _passwordTEController.text,
-    };
-    final ApiResponse response = await ApiCaller.postRequest(
-      url: Urls.registrationUrl,
-      body: requestBody,
+    final bool isSuccess = await _signUpProvider.signUp(
+      _emailTEController.text.trim(),
+      _firstNameTEController.text.trim(),
+      _lastNameTEController.text.trim(),
+      _mobileTEController.text.trim(),
+      _passwordTEController.text.trim(),
     );
-    _signUpInProgress = false;
-    setState(() {});
 
-    if (response.isSuccess) {
+    if (isSuccess) {
       _clearTextFields();
       showSnackBarMessage(context, 'Registration success! Please login.');
     } else {
-      showSnackBarMessage(context, response.errorMessage!);
+      showSnackBarMessage(context, _signUpProvider.errorMessage.toString());
     }
+
+
   }
 
   void _clearTextFields() {

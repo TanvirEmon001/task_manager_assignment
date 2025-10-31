@@ -1,6 +1,6 @@
+import 'package:provider/provider.dart';
+import 'package:task_manager_assignment/data/provider/update_profile_provider.dart';
 import 'package:task_manager_assignment/utils/core_paths.dart';
-
-
 
 class UpdateProfileScreen extends StatefulWidget {
   const UpdateProfileScreen({super.key});
@@ -18,11 +18,8 @@ class _UpdateProfileScreenState extends State<UpdateProfileScreen> {
   final TextEditingController _mobileTEController = TextEditingController();
   final TextEditingController _passwordTEController = TextEditingController();
   final GlobalKey<FormState> _formKey = GlobalKey<FormState>();
+  final UpdateProfileProvider _updateProfileProvider = UpdateProfileProvider();
 
-  final ImagePicker _imagePicker = ImagePicker();
-  XFile? _selectedImage;
-  
-  bool _updateProfileInProgress = false;
 
   @override
   void initState() {
@@ -33,14 +30,13 @@ class _UpdateProfileScreenState extends State<UpdateProfileScreen> {
     _firstNameTEController.text = user.firstName;
     _lastNameTEController.text = user.lastName;
     _mobileTEController.text = user.mobile;
+    _passwordTEController.text = user.password;
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: TMAppBar(
-        fromUpdateProfile: true,
-      ),
+      appBar: TMAppBar(fromUpdateProfile: true),
       body: ScreenBackground(
         child: SingleChildScrollView(
           child: Padding(
@@ -57,9 +53,15 @@ class _UpdateProfileScreenState extends State<UpdateProfileScreen> {
                     style: TextTheme.of(context).titleLarge,
                   ),
                   const SizedBox(height: 24),
-                  PhotoPickerField(
-                    onTap: _pickImage,
-                    selectedPhoto: _selectedImage,
+                  Consumer<UpdateProfileProvider>(
+                    builder: (context, provider, _) {
+                      return PhotoPickerField(
+                        onTap: () {
+                          provider.pickImage();
+                        },
+                        selectedPhoto: provider.selectedImage,
+                      );
+                    },
                   ),
                   const SizedBox(height: 8),
                   TextFormField(
@@ -104,9 +106,12 @@ class _UpdateProfileScreenState extends State<UpdateProfileScreen> {
                   TextFormField(
                     controller: _passwordTEController,
                     obscureText: true,
-                    decoration: InputDecoration(hintText: 'Password (Optional)'),
+                    decoration: InputDecoration(
+                      hintText: 'Password (Optional)',
+                    ),
                     validator: (String? value) {
-                      if ((value != null && value.isNotEmpty) && value.length < 6) {
+                      if ((value != null && value.isNotEmpty) &&
+                          value.length < 6) {
                         return 'Enter a password more than 6 letters';
                       }
 
@@ -114,14 +119,18 @@ class _UpdateProfileScreenState extends State<UpdateProfileScreen> {
                     },
                   ),
                   const SizedBox(height: 16),
-                  Visibility(
-                    visible: _updateProfileInProgress == false,
-                    replacement: CenteredProgressIndicator(),
-                    child: FilledButton(
-                      onPressed: _onTapUpdateButton,
-                      child: Icon(Icons.arrow_circle_right_outlined),
-                    ),
-                  ),
+                  Consumer<UpdateProfileProvider>(
+                    builder: (context, provider, _) {
+                    return Visibility(
+                        visible: provider.updateProfileInProgress == false,
+                        replacement: CenteredProgressIndicator(),
+                        child: FilledButton(
+                          onPressed: _onTapUpdateButton,
+                          child: Icon(Icons.arrow_circle_right_outlined),
+                        ),
+                      );
+                    },
+                  )
                 ],
               ),
             ),
@@ -136,59 +145,24 @@ class _UpdateProfileScreenState extends State<UpdateProfileScreen> {
       _updateProfile();
     }
   }
-  
+
   Future<void> _updateProfile() async {
-    _updateProfileInProgress = true;
-    setState(() {});
+    final bool isSuccess = await _updateProfileProvider.updateProfile(
+      email: _emailTEController.text.trim(),
+      firstName: _firstNameTEController.text.trim(),
+      lastName: _lastNameTEController.text.trim(),
+      mobile: _mobileTEController.text.trim(),
+      password: _passwordTEController.text.trim(),
+    );
 
-    final Map<String, dynamic> requestBody = {
-      "email": _emailTEController.text,
-      "firstName": _firstNameTEController.text.trim(),
-      "lastName": _lastNameTEController.text.trim(),
-      "mobile": _mobileTEController.text.trim(),
-    };
-
-    if (_passwordTEController.text.isNotEmpty) {
-      requestBody['password'] = _passwordTEController.text;
-    }
-
-    String? encodedPhoto;
-
-    if (_selectedImage != null) {
-      List<int> bytes = await _selectedImage!.readAsBytes();
-      encodedPhoto = base64Encode(bytes);
-      requestBody['photo'] = encodedPhoto;
-    }
-
-    final ApiResponse response = await ApiCaller.postRequest(
-        url: Urls.updateProfileUrl, body: requestBody);
-
-    _updateProfileInProgress = false;
-    setState(() {});
-
-    if (response.isSuccess) {
+    if (isSuccess) {
       _passwordTEController.clear();
-
-      UserModel model = UserModel(id: AuthController.userModel!.id,
-          email: _emailTEController.text,
-          firstName: _firstNameTEController.text.trim(),
-          lastName: _lastNameTEController.text.trim(),
-          mobile: _mobileTEController.text.trim(),
-          photo: encodedPhoto ?? AuthController.userModel!.photo
-      );
-      await AuthController.updateUserData(model);
-
       showSnackBarMessage(context, 'Profile has been updated!');
     } else {
-      showSnackBarMessage(context, response.errorMessage!);
-    }
-  }
-
-  Future<void> _pickImage() async {
-    XFile? pickedImage = await _imagePicker.pickImage(source: ImageSource.gallery);
-    if (pickedImage != null) {
-      _selectedImage = pickedImage;
-      setState(() {});
+      showSnackBarMessage(
+        context,
+        _updateProfileProvider.errorMessage.toString(),
+      );
     }
   }
 

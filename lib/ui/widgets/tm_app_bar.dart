@@ -1,4 +1,7 @@
+import 'package:provider/provider.dart';
 import 'package:task_manager_assignment/utils/core_paths.dart';
+
+import '../../data/provider/update_profile_provider.dart';
 
 class TMAppBar extends StatefulWidget implements PreferredSizeWidget {
   const TMAppBar({super.key, this.fromUpdateProfile, this.fromProfileDetails});
@@ -14,9 +17,18 @@ class TMAppBar extends StatefulWidget implements PreferredSizeWidget {
 }
 
 class _TMAppBarState extends State<TMAppBar> {
+
+  @override
+  void initState() {
+    super.initState();
+  }
+
+
   @override
   Widget build(BuildContext context) {
-    final profilePhoto = AuthController.userModel!.photo;
+    final provider = context.watch<UpdateProfileProvider>();
+    final profilePhoto = provider.encodedPhoto ?? AuthController.userModel!.photo;
+
 
     return AppBar(
       backgroundColor: Colors.green,
@@ -45,7 +57,7 @@ class _TMAppBarState extends State<TMAppBar> {
                   ),
                 )
                     : const Icon(Icons.person),
-              ),
+              )
 
             ),
             Column(

@@ -1,3 +1,5 @@
+import 'package:provider/provider.dart';
+import 'package:task_manager_assignment/data/provider/completed_task_provider.dart';
 import 'package:task_manager_assignment/utils/core_paths.dart';
 
 class CompletedTaskScreen extends StatefulWidget {
@@ -8,57 +10,42 @@ class CompletedTaskScreen extends StatefulWidget {
 }
 
 class _CompletedTaskScreenState extends State<CompletedTaskScreen> {
-  bool _getProgressTaskInProgress = false;
-  List<TaskModel> _progressTaskList = [];
+
 
   @override
   void initState() {
     super.initState();
-    _getAllProgressTasks();
+    context.read<CompletedTaskProvider>().getAllCompletedTasks();
   }
 
-  Future<void> _getAllProgressTasks() async {
-    _getProgressTaskInProgress = true;
-    setState(() {});
-    final ApiResponse response = await ApiCaller.getRequest(
-      url: Urls.completedTaskListUrl,
-    );
-    if (response.isSuccess) {
-      List<TaskModel> list = [];
-      for (Map<String, dynamic> jsonData in response.responseData['data']) {
-        list.add(TaskModel.fromJson(jsonData));
-      }
-      _progressTaskList = list;
-    } else {
-      showSnackBarMessage(context, response.errorMessage!);
-    }
-    _getProgressTaskInProgress = false;
-    setState(() {});
-  }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       body: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 16),
-        child: Visibility(
-          visible: _getProgressTaskInProgress == false,
-          replacement: CenteredProgressIndicator(),
-          child: ListView.separated(
-            itemCount: _progressTaskList.length,
-            itemBuilder: (context, index) {
-              return TaskCard(
-                taskModel: _progressTaskList[index],
-                refreshParent: () {
-                  _getAllProgressTasks();
+        child: Consumer<CompletedTaskProvider>(
+          builder: (context, provider, _) {
+            return Visibility(
+              visible: provider.getCompletedTaskInProgress == false,
+              replacement: CenteredProgressIndicator(),
+              child: ListView.separated(
+                itemCount: provider.completedTaskList.length,
+                itemBuilder: (context, index) {
+                  return TaskCard(
+                    taskModel: provider.completedTaskList[index],
+                    refreshParent: () {
+                      provider.getAllCompletedTasks();
+                    },
+                  );
                 },
-              );
-            },
-            separatorBuilder: (context, index) {
-              return SizedBox(height: 8);
-            },
-          ),
-        ),
+                separatorBuilder: (context, index) {
+                  return SizedBox(height: 8);
+                },
+              ),
+            );
+          },
+        )
       ),
     );
   }

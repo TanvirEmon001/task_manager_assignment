@@ -1,5 +1,6 @@
+import 'package:provider/provider.dart';
+import 'package:task_manager_assignment/data/provider/login_provider.dart';
 import 'package:task_manager_assignment/utils/core_paths.dart';
-
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -14,8 +15,8 @@ class _LoginScreenState extends State<LoginScreen> {
   final TextEditingController _emailTEController = TextEditingController();
   final TextEditingController _passwordTEController = TextEditingController();
   final GlobalKey<FormState> _formKey = GlobalKey<FormState>();
-
-  bool _loginInProgress = false;
+  final LoginProvider _loginProvider = LoginProvider();
+  
 
   @override
   Widget build(BuildContext context) {
@@ -60,13 +61,17 @@ class _LoginScreenState extends State<LoginScreen> {
                     },
                   ),
                   const SizedBox(height: 16),
-                  Visibility(
-                    visible: _loginInProgress == false,
-                    replacement: CenteredProgressIndicator(),
-                    child: FilledButton(
-                      onPressed: _onTapLoginButton,
-                      child: Icon(Icons.arrow_circle_right_outlined),
-                    ),
+                  Consumer<LoginProvider>(
+                    builder: (context, loginProvider, _) {
+                      return Visibility(
+                        visible: loginProvider.loginInProgress == false,
+                        replacement: CenteredProgressIndicator(),
+                        child: FilledButton(
+                          onPressed: _onTapLoginButton,
+                          child: Icon(Icons.arrow_circle_right_outlined),
+                        ),
+                      );
+                    },
                   ),
                   const SizedBox(height: 36),
                   Center(
@@ -131,33 +136,20 @@ class _LoginScreenState extends State<LoginScreen> {
   }
 
   Future<void> _login() async {
-    _loginInProgress = true;
-    setState(() {});
-    Map<String, dynamic> requestBody = {
-      "email": _emailTEController.text.trim(),
-      "password": _passwordTEController.text,
-    };
-    final ApiResponse response = await ApiCaller.postRequest(
-      url: Urls.loginUrl,
-      body: requestBody,
+    final bool isSuccess = await _loginProvider.login(
+      _emailTEController.text.trim(),
+      _passwordTEController.text.trim(),
     );
-    if (response.isSuccess && response.responseData['status'] == 'success') {
-      UserModel model = UserModel.fromJson(response.responseData['data']);
-      String token = response.responseData['token'];
 
-      await AuthController.saveUserData(model, token);
-
-      await
+    if (isSuccess) {
       Navigator.pushNamedAndRemoveUntil(
         context,
         MainNavBarHolderScreen.name,
         (predicate) => false,
       );
-    } else {
-      _loginInProgress = false;
-      setState(() {});
-      showSnackBarMessage(context, response.errorMessage!);
     }
+
+
   }
 
   @override

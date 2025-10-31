@@ -5,6 +5,7 @@ class UserModel {
   final String lastName;
   final String mobile;
   final String photo;
+  final String password;
 
   String get fullName {
     return '$firstName $lastName';
@@ -17,6 +18,7 @@ class UserModel {
     required this.lastName,
     required this.mobile,
     required this.photo,
+    required this.password,
   });
 
   factory UserModel.fromJson(Map<String, dynamic> jsonData) {
@@ -27,6 +29,7 @@ class UserModel {
       lastName: jsonData['lastName'],
       mobile: jsonData['mobile'],
       photo: jsonData['photo'] ?? '',
+      password: jsonData['password'] ?? '',
     );
   }
 
@@ -38,6 +41,7 @@ class UserModel {
       "lastName": lastName,
       "mobile": mobile,
       "photo": photo,
+      "password": password,
     };
   }
 }

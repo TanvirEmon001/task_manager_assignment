@@ -1,3 +1,6 @@
+import 'package:provider/provider.dart';
+import 'package:task_manager_assignment/data/provider/add_new_task_provider.dart';
+import 'package:task_manager_assignment/data/provider/get_new_task_provider.dart';
 import 'package:task_manager_assignment/utils/core_paths.dart';
 
 class NewTaskScreen extends StatefulWidget {
@@ -9,103 +12,78 @@ class NewTaskScreen extends StatefulWidget {
 }
 
 class _NewTaskScreenState extends State<NewTaskScreen> {
-  bool _getTaskStatusCountInProgress = false;
-  bool _getNewTaskInProgress = false;
-  List<TaskStatusCountModel> _taskStatusCountList = [];
-  List<TaskModel> _newTaskList = [];
-
   @override
   void initState() {
     super.initState();
-    _getAllTaskStatusCount();
-    _getAllNewTasks();
-  }
-
-  Future<void> _getAllTaskStatusCount() async {
-    _getTaskStatusCountInProgress = true;
-    setState(() {});
-    final ApiResponse response = await ApiCaller.getRequest(
-      url: Urls.taskStatusCountUrl,
-    );
-    if (response.isSuccess) {
-      List<TaskStatusCountModel> list = [];
-      for (Map<String, dynamic> jsonData in response.responseData['data']) {
-        list.add(TaskStatusCountModel.fromJson(jsonData));
-      }
-      _taskStatusCountList = list;
-    } else {
-      showSnackBarMessage(context, response.errorMessage!);
-    }
-    _getTaskStatusCountInProgress = false;
-    setState(() {});
-  }
-
-  Future<void> _getAllNewTasks() async {
-    _getNewTaskInProgress = true;
-    setState(() {});
-    final ApiResponse response = await ApiCaller.getRequest(
-      url: Urls.newTaskListUrl,
-    );
-    if (response.isSuccess) {
-      List<TaskModel> list = [];
-      for (Map<String, dynamic> jsonData in response.responseData['data']) {
-        list.add(TaskModel.fromJson(jsonData));
-      }
-      _newTaskList = list;
-    } else {
-      showSnackBarMessage(context, response.errorMessage!);
-    }
-    _getNewTaskInProgress = false;
-    setState(() {});
+    context.read<GetNewTaskProvider>().getAllNewTasks();
+    context.read<GetNewTaskProvider>().getAllTaskStatusCount();
   }
 
   @override
   Widget build(BuildContext context) {
+    print("Widget build hoitase");
     return Scaffold(
       body: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 16),
         child: Column(
           children: [
             const SizedBox(height: 16),
-            SizedBox(
-              height: 90,
-              child: Visibility(
-                visible: _getTaskStatusCountInProgress == false,
-                replacement: CenteredProgressIndicator(),
-                child: ListView.separated(
-                  itemCount: _taskStatusCountList.length,
-                  scrollDirection: Axis.horizontal,
-                  itemBuilder: (context, index) {
-                    return TaskCountByStatusCard(
-                      title: _taskStatusCountList[index].status,
-                      count: _taskStatusCountList[index].count,
-                    );
-                  },
-                  separatorBuilder: (context, index) {
-                    return SizedBox(width: 4);
-                  },
-                ),
-              ),
-            ),
-            Expanded(
-              child: Visibility(
-                visible: _getNewTaskInProgress == false,
-                replacement: CenteredProgressIndicator(),
-                child: ListView.separated(
-                  itemCount: _newTaskList.length,
-                  itemBuilder: (context, index) {
-                    return TaskCard(
-                      taskModel: _newTaskList[index],
-                      refreshParent: () {
-                        _getAllNewTasks();
+            Consumer<GetNewTaskProvider>(
+              builder: (context, getNewTaskProvider, _) {
+                return SizedBox(
+                  height: 90,
+                  child: Visibility(
+                    visible:
+                        getNewTaskProvider.getTaskStatusCountInProgress ==
+                        false,
+                    replacement: CenteredProgressIndicator(),
+                    child: ListView.separated(
+                      itemCount: getNewTaskProvider.taskStatusCountList.length,
+                      scrollDirection: Axis.horizontal,
+                      itemBuilder: (context, index) {
+                        return TaskCountByStatusCard(
+                          title: getNewTaskProvider
+                              .taskStatusCountList[index]
+                              .status,
+                          count: getNewTaskProvider
+                              .taskStatusCountList[index]
+                              .count,
+                        );
                       },
-                    );
-                  },
-                  separatorBuilder: (context, index) {
-                    return SizedBox(height: 8);
-                  },
-                ),
-              ),
+                      separatorBuilder: (context, index) {
+                        return SizedBox(width: 4);
+                      },
+                    ),
+                  ),
+                );
+              },
+            ),
+            Consumer<GetNewTaskProvider>(
+              builder: (context, getNewTaskProvider, _) {
+                return Expanded(
+                  child: Visibility(
+                    visible: getNewTaskProvider.getNewTaskInProgress == false,
+                    replacement: CenteredProgressIndicator(),
+                    child: ListView.separated(
+                      itemCount: getNewTaskProvider.newTaskList.length,
+                      itemBuilder: (context, index) {
+                        return TaskCard(
+                          taskModel: getNewTaskProvider.newTaskList[index],
+                          refreshParent: () {
+                            context.read<GetNewTaskProvider>().getAllNewTasks();
+                            context
+                                .read<GetNewTaskProvider>()
+                                .getAllTaskStatusCount();
+                          },
+                        );
+                      },
+                      separatorBuilder: (context, index) {
+                        return SizedBox(height: 8);
+                      },
+                    ),
+                  ),
+                );
+              },
             ),
           ],
         ),

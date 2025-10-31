@@ -1,4 +1,6 @@
-
+import 'package:provider/provider.dart';
+import 'package:task_manager_assignment/data/provider/profile_details_provider.dart';
+import 'package:task_manager_assignment/data/provider/update_profile_provider.dart';
 import 'package:task_manager_assignment/utils/core_paths.dart';
 
 class ProfileDetailsScreen extends StatefulWidget {
@@ -10,92 +12,58 @@ class ProfileDetailsScreen extends StatefulWidget {
 }
 
 class _ProfileDetailsScreenState extends State<ProfileDetailsScreen> {
-
-  final List<ProfileModel> _profileModel = [];
-
-  bool _progressIndicator = false;
-
-  String? userName;
-  String? email;
-  String? mobile;
-
   @override
   void initState() {
     super.initState();
-
-
-    _fetchProfileDetails();
+    context.read<ProfileDetailsProvider>().fetchProfileDetails();
   }
 
   @override
   Widget build(BuildContext context) {
-    final profilePhoto = AuthController.userModel!.photo;
+    final provider = context.watch<UpdateProfileProvider>();
+    final profilePhoto =
+        provider.encodedPhoto ?? AuthController.userModel!.photo;
     return Scaffold(
       appBar: TMAppBar(fromProfileDetails: true),
 
-      body: Visibility(
-        visible: _progressIndicator == false,
-        replacement: CenteredProgressIndicator(),
-        child: Center(
-          child: Padding(
-            padding: const EdgeInsets.all(8.0),
-            child: Column(
-              children: [
-                CircleAvatar(
-                  maxRadius: 50,
-                  backgroundColor: Colors.grey.shade200,
-                  child: profilePhoto.isNotEmpty
-                      ? ClipOval(
-                    child: Image.memory(
-                      base64Decode(profilePhoto),
-                      fit: BoxFit.cover,
-                      width: 100,
-                      height: 100,
+      body: Consumer<ProfileDetailsProvider>(
+        builder: (context, core, _) {
+          return Visibility(
+            visible: core.progressIndicator == false,
+            replacement: CenteredProgressIndicator(),
+            child: Center(
+              child: Padding(
+                padding: const EdgeInsets.all(8.0),
+                child: Column(
+                  children: [
+                    CircleAvatar(
+                      maxRadius: 50,
+                      backgroundColor: Colors.grey.shade200,
+                      child: profilePhoto.isNotEmpty
+                          ? ClipOval(
+                              child: Image.memory(
+                                base64Decode(profilePhoto),
+                                fit: BoxFit.cover,
+                                width: 100,
+                                height: 100,
+                              ),
+                            )
+                          : const Icon(Icons.person),
                     ),
-                  )
-                      : const Icon(Icons.person),
+                    const SizedBox(height: 16),
+                    Text(
+                      core.userName ?? "No name",
+                      style: const TextStyle(fontSize: 18),
+                    ),
+                    Text(core.email ?? "No email"),
+                    Text(core.mobile ?? "No mobile"),
+                  ],
                 ),
-                Text(userName ?? 'User Not Found'),
-                Text(email ?? 'Email Not Found'),
-                Text(mobile ?? 'Mobile Not Found'),
-              ],
+              ),
             ),
-          ),
-        ),
+          );
+        },
       ),
     );
-  }
-
-  Future<void> _fetchProfileDetails() async {
-    setState(() {
-      _progressIndicator = true;
-    });
-
-    final ApiResponse response = await ApiCaller.getRequest(
-      url: Urls.profileDetailsUrl,
-    );
-
-    if (response.isSuccess) {
-      final decodedJson = response.responseData;
-
-      for (Map<String, dynamic> profileJson in decodedJson['data']) {
-        ProfileModel profileModel = ProfileModel.fromJson(profileJson);
-        _profileModel.add(profileModel);
-      }
-      setState(() {
-        userName = "${_profileModel[0].firstName} ${_profileModel[0].lastName}";
-        email = _profileModel[0].email;
-        mobile = _profileModel[0].mobile;
-        _progressIndicator = false;
-      });
-
-
-
-    } else {
-      setState(() {
-        _progressIndicator = false;
-      });
-      showSnackBarMessage(context, response.errorMessage!);
-    }
   }
 }

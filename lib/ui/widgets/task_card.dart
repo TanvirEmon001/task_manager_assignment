@@ -1,3 +1,7 @@
+import 'package:provider/provider.dart';
+import 'package:task_manager_assignment/data/provider/get_new_task_provider.dart';
+import 'package:task_manager_assignment/data/provider/progress_task_provider.dart';
+import 'package:task_manager_assignment/data/provider/task_card_functionality_provider.dart';
 import 'package:task_manager_assignment/utils/core_paths.dart';
 
 class TaskCard extends StatefulWidget {
@@ -15,8 +19,8 @@ class TaskCard extends StatefulWidget {
 }
 
 class _TaskCardState extends State<TaskCard> {
-  bool _changeStatusInProgress = false;
-  bool _deleteInProgress = false;
+  final TaskCardFunctionalityProvider _provider =
+      TaskCardFunctionalityProvider();
 
   @override
   Widget build(BuildContext context) {
@@ -66,26 +70,18 @@ class _TaskCardState extends State<TaskCard> {
                 ),
               ),
               Spacer(),
-              Visibility(
-                visible: _deleteInProgress == false,
-                replacement: CenteredProgressIndicator(),
-                child: IconButton(
-                  onPressed: () {
-                    _deleteTask();
-                  },
-                  icon: Icon(Icons.delete, color: Colors.grey),
-                ),
+              IconButton(
+                onPressed: () {
+                  _deleteTask();
+                },
+                icon: Icon(Icons.delete, color: Colors.grey),
               ),
-              Visibility(
-                visible: _changeStatusInProgress == false,
-                replacement: CircularProgressIndicator(),
-                child: IconButton(
-                  onPressed: () {
-                    _showChangeStatusDialog();
-                  },
-                  icon: Icon(Icons.edit),
-                  color: Colors.grey,
-                ),
+              IconButton(
+                onPressed: () {
+                  _showChangeStatusDialog();
+                },
+                icon: Icon(Icons.edit),
+                color: Colors.grey,
               ),
             ],
           ),
@@ -146,7 +142,6 @@ class _TaskCardState extends State<TaskCard> {
     );
   }
 
-
   // task status change method
   Future<void> _changeStatus(String status) async {
     if (status == widget.taskModel.status) {
@@ -155,39 +150,26 @@ class _TaskCardState extends State<TaskCard> {
 
     Navigator.pop(context);
 
-    _changeStatusInProgress = true;
-    setState(() {});
-    final ApiResponse response = await ApiCaller.getRequest(
-      url: Urls.updateTaskStatusUrl(widget.taskModel.id, status),
+    final bool isSuccess = await _provider.changeStatus(
+      widget.taskModel.id,
+      status,
     );
-    _changeStatusInProgress = false;
-    setState(() {});
-    if (response.isSuccess) {
+
+    if (isSuccess) {
       widget.refreshParent();
     } else {
-      showSnackBarMessage(context, response.errorMessage!);
+      showSnackBarMessage(context, _provider.errorMessage.toString());
     }
   }
-
 
   // task delete method
   Future<void> _deleteTask() async {
-    _deleteInProgress = true;
-    setState(() {});
-    final ApiResponse response = await ApiCaller.getRequest(
-      url: Urls.deleteTaskUrl(widget.taskModel.id),
-    );
-    _deleteInProgress = false;
-    setState(() {});
-    if (response.isSuccess) {
+    final bool isSuccess = await _provider.deleteTask(widget.taskModel.id);
+
+    if (isSuccess) {
       widget.refreshParent();
     } else {
-      showSnackBarMessage(context, response.errorMessage!);
+      showSnackBarMessage(context, _provider.errorMessage.toString());
     }
   }
-
-
-
-
-
 }

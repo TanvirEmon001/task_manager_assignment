@@ -1,6 +1,8 @@
+import 'package:provider/provider.dart';
+import 'package:task_manager_assignment/data/provider/add_new_task_provider.dart';
 import 'package:task_manager_assignment/utils/core_paths.dart';
 
-
+import '../../data/provider/update_profile_provider.dart';
 
 class AddNewTaskScreen extends StatefulWidget {
   const AddNewTaskScreen({super.key});
@@ -14,14 +16,75 @@ class _AddNewTaskScreenState extends State<AddNewTaskScreen> {
   final TextEditingController _descriptionTEController =
       TextEditingController();
   final GlobalKey<FormState> _formKey = GlobalKey<FormState>();
-
-  bool _addNewTaskInProgress = false;
-
+  final AddNewTaskProvider _addNewTaskProvider = AddNewTaskProvider();
+  @override
+  void initState() {
+    super.initState();
+  }
 
   @override
   Widget build(BuildContext context) {
+    final provider = context.watch<UpdateProfileProvider>();
+    final profilePhoto =
+        provider.encodedPhoto ?? AuthController.userModel!.photo;
+
     return Scaffold(
-      appBar: TMAppBar(),
+      appBar: AppBar(
+        backgroundColor: Colors.green,
+        automaticallyImplyLeading: false,
+        leading: IconButton(
+          onPressed: () {
+            Navigator.pushNamedAndRemoveUntil(
+              context,
+              MainNavBarHolderScreen.name,
+              (predicate) => false,
+            );
+          },
+          icon: Icon(Icons.arrow_back_sharp),
+        ),
+        title: GestureDetector(
+          child: Row(
+            spacing: 8,
+            children: [
+              GestureDetector(
+                onTap: () {},
+                child: CircleAvatar(
+                  maxRadius: 25,
+                  backgroundColor: Colors.grey.shade200,
+                  child: profilePhoto.isNotEmpty
+                      ? ClipOval(
+                          child: Image.memory(
+                            base64Decode(profilePhoto),
+                            fit: BoxFit.cover,
+                            width: 50,
+                            height: 50,
+                          ),
+                        )
+                      : const Icon(Icons.person),
+                ),
+              ),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    AuthController.userModel?.fullName ?? '',
+                    style: Theme.of(
+                      context,
+                    ).textTheme.titleSmall?.copyWith(color: Colors.white),
+                  ),
+                  Text(
+                    AuthController.userModel?.email ?? '',
+                    style: Theme.of(
+                      context,
+                    ).textTheme.bodySmall?.copyWith(color: Colors.white),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+        actions: [IconButton(onPressed: () {}, icon: Icon(Icons.logout))],
+      ),
       body: ScreenBackground(
         child: SingleChildScrollView(
           child: Padding(
@@ -62,13 +125,18 @@ class _AddNewTaskScreenState extends State<AddNewTaskScreen> {
                     },
                   ),
                   const SizedBox(height: 16),
-                  Visibility(
-                    visible: _addNewTaskInProgress == false,
-                    replacement: CenteredProgressIndicator(),
-                    child: FilledButton(
-                      onPressed: _onTapAddButton,
-                      child: Text('Add'),
-                    ),
+                  Consumer<AddNewTaskProvider>(
+                    builder: (context, addNewTaskProvider, _) {
+                      return Visibility(
+                        visible:
+                            addNewTaskProvider.addNewTaskInProgress == false,
+                        replacement: CenteredProgressIndicator(),
+                        child: FilledButton(
+                          onPressed: _onTapAddButton,
+                          child: Text('Add'),
+                        ),
+                      );
+                    },
                   ),
                 ],
               ),
@@ -86,28 +154,16 @@ class _AddNewTaskScreenState extends State<AddNewTaskScreen> {
   }
 
   Future<void> _addNewTask() async {
-    _addNewTaskInProgress = true;
-    setState(() {});
-
-    Map<String, dynamic> requestBody = {
-      "title": _titleTEController.text.trim(),
-      "description": _descriptionTEController.text.trim(),
-      "status": "New",
-    };
-
-    final ApiResponse response = await ApiCaller.postRequest(
-      url: Urls.createTaskUrl,
-      body: requestBody,
+    final bool isSuccess = await _addNewTaskProvider.addNewTask(
+      _titleTEController.text.trim(),
+      _descriptionTEController.text.trim(),
     );
 
-    _addNewTaskInProgress = false;
-    setState(() {});
-
-    if (response.isSuccess) {
+    if (isSuccess) {
       _clearTextFields();
       showSnackBarMessage(context, 'New task has been added');
     } else {
-      showSnackBarMessage(context, response.errorMessage!);
+      showSnackBarMessage(context, _addNewTaskProvider.errorMessage.toString());
     }
   }
 

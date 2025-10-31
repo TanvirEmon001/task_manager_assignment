@@ -1,6 +1,6 @@
+import 'package:provider/provider.dart';
+import 'package:task_manager_assignment/data/provider/verify_otp_provider.dart';
 import 'package:task_manager_assignment/utils/core_paths.dart';
-
-
 
 class ForgotPasswordVerifyOtpScreen extends StatefulWidget {
   final String userEmail;
@@ -15,7 +15,7 @@ class _ForgotPasswordVerifyOtpScreenState
     extends State<ForgotPasswordVerifyOtpScreen> {
   final TextEditingController _otpTEController = TextEditingController();
   final GlobalKey<FormState> _formKey = GlobalKey<FormState>();
-  bool _progressIndicator = false;
+  final VerifyOtpProvider _verifyOtpProvider = VerifyOtpProvider();
 
   @override
   Widget build(BuildContext context) {
@@ -60,13 +60,17 @@ class _ForgotPasswordVerifyOtpScreenState
                     appContext: context,
                   ),
                   const SizedBox(height: 16),
-                  Visibility(
-                    visible: _progressIndicator == false,
-                    replacement: CenteredProgressIndicator(),
-                    child: FilledButton(
-                      onPressed: _onTapVerifyButton,
-                      child: Text('Verify'),
-                    ),
+                  Consumer<VerifyOtpProvider>(
+                    builder: (context, verifyOtpProvider, _) {
+                      return Visibility(
+                        visible: verifyOtpProvider.progressIndicator == false,
+                        replacement: CenteredProgressIndicator(),
+                        child: FilledButton(
+                          onPressed: _onTapVerifyButton,
+                          child: Text('Verify'),
+                        ),
+                      );
+                    },
                   ),
                   const SizedBox(height: 36),
                   Center(
@@ -114,32 +118,28 @@ class _ForgotPasswordVerifyOtpScreenState
   }
 
   Future<void> _verifyByOtp() async {
-    setState(() {
-      _progressIndicator = true;
-    });
+    final bool isSuccess = await _verifyOtpProvider.verifyByOtp(
+      _otpTEController.text.trim(),
+      widget.userEmail,
+    );
 
-    String url =
-        "${Urls.recoveryVerifyOtpUrl}/${widget.userEmail}/${_otpTEController.text.trim()}";
-
-
-    final ApiResponse response = await ApiCaller.getRequest(url: url);
-
-    if (response.isSuccess) {
-      _otpTEController.clear();
+    if (isSuccess) {
       showSnackBarMessage(context, "OTP Matched!");
+      await Future.delayed(Duration(seconds: 3));
       Navigator.pushAndRemoveUntil(
         context,
-        MaterialPageRoute(builder: (context) => ResetPasswordScreen(email: widget.userEmail, otp: int.parse(_otpTEController.text.trim()),)),
-            (predicate) => false,
+        MaterialPageRoute(
+          builder: (context) => ResetPasswordScreen(
+            email: widget.userEmail,
+            otp: _otpTEController.text.trim(),
+          ),
+        ),
+        (predicate) => false,
       );
     } else {
       _otpTEController.clear();
-      showSnackBarMessage(context, "OTP did not matched!");
-      setState(() {
-        _progressIndicator = false;
-      });
+      showSnackBarMessage(context, _verifyOtpProvider.errorMessage.toString());
     }
-
   }
 
   @override

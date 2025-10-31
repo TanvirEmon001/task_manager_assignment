@@ -1,8 +1,10 @@
+import 'package:provider/provider.dart';
+import 'package:task_manager_assignment/data/provider/reset_password_provider.dart';
 import 'package:task_manager_assignment/utils/core_paths.dart';
 
 class ResetPasswordScreen extends StatefulWidget {
   final String email;
-  final int otp;
+  final String otp;
 
   const ResetPasswordScreen({
     super.key,
@@ -19,8 +21,6 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
   final TextEditingController _confirmPasswordTEController =
       TextEditingController();
   final GlobalKey<FormState> _formKey = GlobalKey<FormState>();
-
-  bool _progressIndicator = false;
 
   @override
   Widget build(BuildContext context) {
@@ -41,33 +41,65 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
                   ),
                   const SizedBox(height: 4),
                   Text(
-                    'Password should be more than 6 letters and combination of numbers',
+                    'Password should be at least 6 characters and include a number',
                     style: Theme.of(
                       context,
                     ).textTheme.bodyLarge?.copyWith(color: Colors.grey),
                   ),
                   const SizedBox(height: 24),
+
+                  // New Password
                   TextFormField(
                     controller: _passwordTEController,
-                    decoration: InputDecoration(hintText: 'New Password'),
+                    decoration: const InputDecoration(hintText: 'New Password'),
+                    obscureText: true,
+                    validator: (value) {
+                      if (value!.isEmpty) return 'Enter password';
+                      if (value.length < 6)
+                        return 'Minimum 6 characters required';
+                      return null;
+                    },
                   ),
                   const SizedBox(height: 8),
+
+                  // Confirm Password
                   TextFormField(
                     controller: _confirmPasswordTEController,
-                    decoration: InputDecoration(
+                    decoration: const InputDecoration(
                       hintText: 'Confirm New Password',
                     ),
+                    obscureText: true,
+                    validator: (value) {
+                      if (value!.isEmpty) return 'Confirm your password';
+                      if (value != _passwordTEController.text)
+                        return 'Passwords do not match';
+                      return null;
+                    },
                   ),
+
                   const SizedBox(height: 16),
-                  FilledButton(
-                    onPressed: _onTapResetPasswordButton,
-                    child: Icon(Icons.arrow_circle_right_outlined),
+
+                  Consumer<ResetPasswordProvider>(
+                    builder: (context, resetPasswordProvider, _) {
+                      return Visibility(
+                        visible: !resetPasswordProvider.progressIndicator,
+                        replacement: const Center(
+                          child: CircularProgressIndicator(),
+                        ),
+                        child: FilledButton(
+                          onPressed: _onTapResetPasswordButton,
+                          child: const Icon(Icons.arrow_circle_right_outlined),
+                        ),
+                      );
+                    },
                   ),
+
                   const SizedBox(height: 36),
+
                   Center(
                     child: RichText(
                       text: TextSpan(
-                        style: TextStyle(
+                        style: const TextStyle(
                           color: Colors.black,
                           fontWeight: FontWeight.w600,
                         ),
@@ -75,9 +107,9 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
                         children: [
                           TextSpan(
                             text: 'Login',
-                            style: TextStyle(color: Colors.green),
+                            style: const TextStyle(color: Colors.green),
                             recognizer: TapGestureRecognizer()
-                              ..onTap = _onTapSignUpButton,
+                              ..onTap = _onTapLoginButton,
                           ),
                         ],
                       ),
@@ -92,74 +124,44 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
     );
   }
 
-  void _onTapSignUpButton() {
+  void _onTapLoginButton() {
     Navigator.pushAndRemoveUntil(
       context,
-      MaterialPageRoute(builder: (context) => LoginScreen()),
-      (predicate) => false,
+      MaterialPageRoute(builder: (context) => const LoginScreen()),
+      (route) => false,
     );
   }
 
   void _onTapResetPasswordButton() {
-    // Validate before calling API
-    if (_validatePasswords()) {
+    if (_formKey.currentState!.validate()) {
       _recoverResetPassword();
     }
   }
 
-  bool _validatePasswords() {
-    String password = _passwordTEController.text.trim();
-    String confirmPassword = _confirmPasswordTEController.text.trim();
-
-    if (password.isEmpty || confirmPassword.isEmpty) {
-      showSnackBarMessage(context, "Please fill both password fields");
-      return false;
-    }
-
-    if (password.length < 6) {
-      showSnackBarMessage(context, "Password must be at least 6 characters long");
-      return false;
-    }
-
-    if (password != confirmPassword) {
-      showSnackBarMessage(context, "Passwords do not match");
-      return false;
-    }
-
-    return true;
-  }
-
   Future<void> _recoverResetPassword() async {
-    setState(() {
-      _progressIndicator = true;
-    });
-
-    String password = _passwordTEController.text.trim();
-
-    Map<String, dynamic> body = {
-      "email": widget.email,
-      "OTP": widget.otp.toString(),
-      "password": password,
-    };
-
-    final ApiResponse response = await ApiCaller.postRequest(
-      url: Urls.recoverResetPasswordUrl,
-      body: body,
+    final resetPasswordProvider = Provider.of<ResetPasswordProvider>(
+      context,
+      listen: false,
     );
 
-    setState(() {
-      _progressIndicator = false;
-    });
+    final bool isSuccess = await resetPasswordProvider.recoverResetPassword(
+      widget.email,
+      widget.otp,
+      _passwordTEController.text.trim(),
+    );
 
-    if (response.isSuccess) {
+    if (isSuccess) {
       showSnackBarMessage(context, "Password reset successful!");
       Navigator.pushAndRemoveUntil(
         context,
         MaterialPageRoute(builder: (context) => const LoginScreen()),
-            (predicate) => false,
+        (route) => false,
       );
     } else {
-      showSnackBarMessage(context, response.errorMessage.toString());
+      showSnackBarMessage(
+        context,
+        resetPasswordProvider.errorMessage ?? "Failed to reset password",
+      );
     }
   }
 
